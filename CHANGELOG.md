@@ -10,6 +10,9 @@ All notable changes to this project are documented in this file. The format foll
 
 - Continuous integration: every push and pull request runs the full check gate, including
   the end-to-end suite, on GitHub Actions.
+- Releases are published from version tags by a GitHub Actions workflow that stages the
+  package on npm with provenance; a maintainer approves each version with 2FA before it is
+  installable. `docs/releasing.md` describes the procedure.
 
 ### Changed
 
