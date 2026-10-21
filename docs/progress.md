@@ -17,7 +17,7 @@
 - [x] (A) P3.3 - Astro ClientRouter support (reattach UI, republish state, rescan gated scripts), local tag v0.2.1 (plan: Astro integration, Runtime behaviour)
 - [x] (A) P3.4 - Gate: keep the async attribute as written, document data-astro-exec, local tag v0.2.2 (plan: Script gating, Releases)
 - [x] (A) P4.0 - Operating contract for the public repository: CI, pull requests, tag-driven staged releases, read-only git for agents, no tooling references (plan: Delivery, Checks, Releases, Repository layout)
-- [ ] (B) P4.2 - CI workflow running the check gate on every push and pull request (plan: Checks)
+- [x] (B) P4.2 - CI workflow running the check gate on every push and pull request (plan: Checks)
 - [ ] (A) P4.3 - Release workflow with staged provenance publishing, tag/version gate, docs/releasing.md (plan: Releases)
 - [ ] (A) P4.4 - Vite-based config loader with dependency watching, astro >= 5.4 (plan: Astro integration)
 - [ ] (A) P4.5 - Validation reports schema and cross-field errors in one pass (plan: Validation)

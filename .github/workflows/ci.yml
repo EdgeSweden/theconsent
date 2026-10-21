@@ -1,0 +1,73 @@
+name: ci
+
+# The check gate (plan: Checks). Step names are the check names and run in the order of
+# scripts/check.ts, so a local `pnpm check` and this job agree. Tags are not built here:
+# release.yml calls this workflow before it publishes.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# `ci-` rather than github.workflow, which is the caller's name under workflow_call. Runs on
+# main are never cancelled, so every merge commit gets its own result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Astro needs Node >= 22.22; fail early and clearly if the runner's 22.x is older.
+      - name: node version
+        run: |
+          node --version
+          node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=22)?0:1)' ||
+            { echo "::error::Node $(node --version) is older than 22.22."; exit 1; }
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: check:types
+        run: pnpm type-check
+      - name: check:lint
+        run: pnpm lint
+      - name: check:format
+        run: pnpm format:check
+      - name: check:test
+        run: pnpm test
+      - name: check:deps
+        run: pnpm audit --prod --audit-level=high
+      - name: check:build
+        run: pnpm build
+      - name: check:size
+        run: pnpm size
+
+      - name: install browsers
+        run: pnpm exec playwright install --with-deps chromium
+      # Builds the package and the three demo variants, then runs Playwright + axe.
+      - name: check:e2e
+        run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: demo
+          path: examples/astro/dist*
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results
+          if-no-files-found: ignore
