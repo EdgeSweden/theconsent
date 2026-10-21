@@ -92,15 +92,27 @@ script also imports and installs `./gate` when `gateScripts` is `true` and `./gt
 or pages. Contrast problems are logged as warnings unless
 `validation.strictContrast` is `true`.
 
-The config module is loaded by Node at build time and bundled by Vite for the browser, so it must
-work in both:
+At build time the config module is loaded through the module runner of the Vite that your Astro
+uses. In `astro dev`, a change to the config or to any module it imports restarts the server and
+revalidates.
 
-- A `.ts` config needs Node ≥ 22.18, which strips types natively. Use erasable syntax only: no
-  `enum` and no `namespace`.
-- Imports need explicit file extensions. Path aliases and `import.meta.env` are not available.
-  Keep the config self-contained, or import only relative modules with extensions.
-- To vary the config per build, choose between two config files in `astro.config.ts`. Do not
-  branch inside the config: the validated object and the shipped object must be the same.
+Supported in the config module:
+
+- TypeScript and JavaScript modules;
+- relative imports, with or without file extensions;
+- JSON imports, for example a strings file per locale;
+- imports of installed packages.
+
+Not supported in the config module, because it is loaded without your site's Vite or Astro
+configuration:
+
+- path aliases defined in `tsconfig.json` or in Vite's `resolve.alias`;
+- `import.meta.env`: a config that reads it fails the build, because the value validated at
+  build time could differ from the one shipped to the browser.
+
+The config is also bundled for the browser, so keep it free of server-only code. To vary the
+config per build, choose between two config files in `astro.config.ts`. Do not branch inside the
+config: the validated object and the shipped object must be the same.
 
 ### Astro's ClientRouter
 
@@ -417,8 +429,8 @@ is allow-listed can be activated by consent gating. Gated inline code needs its 
 
 - Browsers: current evergreen browsers. The package relies on the `inert` attribute, `:focus-visible`
   and CSS `translate`.
-- Astro ≥ 5 for the integration, as an optional peer dependency.
-- Node ≥ 22. Node ≥ 22.18 is needed for a `.ts` config.
+- Astro ≥ 5.4 for the integration, as an optional peer dependency.
+- Node ≥ 22.
 
 The browser entry has zero runtime dependencies. Its size budget is part of the public contract:
 the core and its stylesheet stay at or under 6 KB gzipped.

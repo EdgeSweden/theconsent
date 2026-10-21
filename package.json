@@ -55,7 +55,7 @@
     "release:check": "node scripts/release-check.ts"
   },
   "peerDependencies": {
-    "astro": ">=5"
+    "astro": ">=5.4"
   },
   "peerDependenciesMeta": {
     "astro": {
@@ -72,6 +72,7 @@
     "@size-limit/file": "^14.2.0",
     "@types/node": "^24.19.2",
     "astro": "^7.4.1",
+    "astro-min": "npm:astro@5.4.0",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.13.0",

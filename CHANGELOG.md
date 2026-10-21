@@ -16,6 +16,15 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- The Astro integration loads the config module through the module runner of Astro's own Vite
+  instead of Node's `import()`. A config can import JSON files, relative modules without file
+  extensions and installed packages, and needs no particular Node version for TypeScript. In
+  `astro dev`, every module the config imports is watched, not only the config file. Path
+  aliases are not available in the config, and a config that reads `import.meta.env` fails the
+  build.
+- The optional peer dependency is now `astro >= 5.4` (was `>= 5`), the first Astro whose Vite
+  provides that module runner. An older Astro fails the build with a message naming the
+  requirement.
 - Package metadata (`repository`, `homepage`, `bugs`) points at the public repository
   `EdgeSweden/theconsent`.
 
