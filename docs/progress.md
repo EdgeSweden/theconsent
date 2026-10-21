@@ -19,7 +19,7 @@
 - [x] (A) P4.0 - Operating contract for the public repository: CI, pull requests, tag-driven staged releases, read-only git for agents, no tooling references (plan: Delivery, Checks, Releases, Repository layout)
 - [x] (B) P4.2 - CI workflow running the check gate on every push and pull request (plan: Checks)
 - [x] (A) P4.3 - Release workflow with staged provenance publishing, tag/version gate, docs/releasing.md (plan: Releases)
-- [ ] (A) P4.4 - Vite-based config loader with dependency watching, astro >= 5.4 (plan: Astro integration)
+- [x] (A) P4.4 - Vite-based config loader with dependency watching, astro >= 5.4 (plan: Astro integration)
 - [ ] (A) P4.5 - Validation reports schema and cross-field errors in one pass (plan: Validation)
 - [ ] (A) P4.6 - Hardening: late content stays inert, unique id prefix, theme.vars runtime guard (plan: Accessibility, Validation, CSP)
 - [ ] (A) P4.7 - Release 0.3.0, the first published version (plan: Releases)

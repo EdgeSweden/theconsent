@@ -379,7 +379,7 @@ locally and the `checks` job of `ci.yml` on GitHub.
 
 Build: `tsup` to ESM only, `.d.ts` emitted, CSS copied. `engines.node >= 22`. TypeScript strict +
 `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`. Dependency metadata is package-level,
-so it is declared with that in mind: Astro is an optional peer dependency (`>= 5`,
+so it is declared with that in mind: Astro is an optional peer dependency (`>= 5.4`,
 `peerDependenciesMeta.optional: true`) that only the `./astro` entry imports at runtime; zod is a
 regular dependency, installed for every consumer, but imported only by the `./astro` and
 `validateConfig` code paths and never bundled into the `.`, `./gate` or `./gtag` entries. The browser bundles

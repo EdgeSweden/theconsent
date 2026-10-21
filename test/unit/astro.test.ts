@@ -1,5 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+// @vitest-environment node
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, describe, expect, test, vi } from "vitest";
 import consent, { pageScript, VIRTUAL_CONFIG } from "../../src/astro/index";
@@ -14,11 +16,19 @@ const TMP = resolve(process.cwd(), "test/.tmp");
 afterAll(() => rmSync(TMP, { recursive: true, force: true }));
 
 /** Writes `source` as a config module in a temp project and runs the setup hook on it. */
-async function setup(source: string, file = "consent.config.mjs") {
+async function setup(
+  source: string,
+  file = "consent.config.mjs",
+  extra: Record<string, string> = {},
+) {
   // Inside the repository: vitest's module runner only loads files under its root.
   mkdirSync(TMP, { recursive: true });
   const root = mkdtempSync(join(TMP, "project-"));
   writeFileSync(join(root, file), source);
+  for (const [name, content] of Object.entries(extra)) {
+    mkdirSync(dirname(join(root, name)), { recursive: true });
+    writeFileSync(join(root, name), content);
+  }
   const injectScript = vi.fn();
   const updateConfig = vi.fn();
   const addWatchFile = vi.fn();
@@ -109,7 +119,122 @@ describe("Astro integration", () => {
 
   test("a module without a default export fails clearly", async () => {
     const s = await setup(`export const config = {};\n`);
-    await expect(s.run()).rejects.toThrow(/has no default export/);
+    await expect(s.run()).rejects.toThrow(
+      /^@edgesweden\/consent: \.\/consent\.config\.mjs has no default export/,
+    );
+  });
+
+  describe("config loading through Vite's module runner", () => {
+    const { locales, ...rest } = baseConfig();
+    const splitConfig = [
+      `import type { ConsentConfig } from "@edgesweden/consent";`,
+      `import { z } from "zod";`,
+      `import strings from "./strings/en.json";`,
+      `import { policyVersion } from "./policy";`,
+      `const config: ConsentConfig = { ...${JSON.stringify(rest)}, policyVersion: z.string().parse(policyVersion), locales: { en: strings } };`,
+      `export default config;`,
+    ].join("\n");
+    const splitFiles = {
+      "strings/en.json": JSON.stringify(locales.en),
+      "policy.ts": `export const policyVersion: string = "from-module";\n`,
+    };
+
+    test("a TypeScript config importing JSON, an extensionless module and a package loads", async () => {
+      const s = await setup(splitConfig, "consent.config.ts", splitFiles);
+      await s.run();
+      expect(s.injectScript).toHaveBeenCalledWith("page", pageScript({}));
+    });
+
+    test("the config and every module it imports are watched", async () => {
+      const s = await setup(splitConfig, "consent.config.ts", splitFiles);
+      await s.run();
+      const watched = s.addWatchFile.mock.calls.map(([file]) => resolve(String(file)));
+      expect(watched).toEqual(
+        expect.arrayContaining([
+          s.path,
+          join(s.root, "strings/en.json"),
+          join(s.root, "policy.ts"),
+        ]),
+      );
+      expect(new Set(watched).size).toBe(watched.length);
+    });
+
+    test("an edited dependency is picked up on the next load", async () => {
+      const s = await setup(splitConfig, "consent.config.ts", splitFiles);
+      await s.run();
+      writeFileSync(join(s.root, "policy.ts"), `export const policyVersion: string = "";\n`);
+      await expect(s.run()).rejects.toThrow(/policyVersion/);
+    });
+
+    describe.each(["astro", "astro-min"])("with %s", (astroPackage) => {
+      test.each([
+        ["a PUBLIC_ value", `import.meta.env.PUBLIC_POLICY ?? "2026-10"`],
+        ["PROD", `import.meta.env.PROD ? "2026-10" : "dev"`],
+      ])("a config that reads import.meta.env (%s) fails to load", async (_, expression) => {
+        const source = `export default { ...${JSON.stringify(baseConfig())}, policyVersion: ${expression} };\n`;
+        const s = await setup(source, "consent.config.ts", { ".env": "PUBLIC_POLICY=from-env\n" });
+        // Load through the Astro (and so the Vite) under test.
+        const astro = dirname(
+          createRequire(join(TMP, "x")).resolve(`${astroPackage}/package.json`),
+        );
+        mkdirSync(join(s.root, "node_modules"), { recursive: true });
+        symlinkSync(astro, join(s.root, "node_modules/astro"));
+        await expect(s.run()).rejects.toThrow(
+          /^@edgesweden\/consent: cannot load \.\/consent\.config\.ts: .*import\.meta\.env is not available/s,
+        );
+        expect(s.injectScript).not.toHaveBeenCalled();
+      });
+    });
+
+    test("an absolute config path is accepted", async () => {
+      const s = await setup(moduleFor(baseConfig()));
+      const hook = consent({ config: s.path }).hooks["astro:config:setup"] as Setup;
+      await hook({
+        config: { root: pathToFileURL(`${s.root}/`) },
+        injectScript: s.injectScript,
+        updateConfig: s.updateConfig,
+        addWatchFile: s.addWatchFile,
+        logger: s.logger,
+      } as never);
+      const plugin = s.updateConfig.mock.calls[0]![0].vite.plugins[0];
+      expect(plugin.load(plugin.resolveId(VIRTUAL_CONFIG))).toBe(
+        `export { default } from ${JSON.stringify(s.path)};`,
+      );
+    });
+
+    test("an Astro whose Vite has no runnerImport fails with the version requirement", async () => {
+      const pkg = (name: string) =>
+        JSON.stringify({ name, version: "0.0.0", type: "module", main: "index.js" });
+      const s = await setup(moduleFor(baseConfig()), "consent.config.mjs", {
+        "node_modules/astro/package.json": pkg("astro"),
+        "node_modules/astro/index.js": "export {};\n",
+        "node_modules/astro/node_modules/vite/package.json": pkg("vite"),
+        "node_modules/astro/node_modules/vite/index.js": `export const version = "6.0.0";\n`,
+      });
+      await expect(s.run()).rejects.toThrow("@edgesweden/consent/astro needs Astro >= 5.4.");
+      expect(s.addWatchFile).not.toHaveBeenCalled();
+    });
+
+    test("a module that cannot be loaded fails with the package-prefixed message", async () => {
+      const s = await setup(`export default {\n`);
+      await expect(s.run()).rejects.toThrow(
+        /^@edgesweden\/consent: cannot load \.\/consent\.config\.mjs: /,
+      );
+      expect(s.injectScript).not.toHaveBeenCalled();
+    });
+
+    test("a tsconfig path alias is not resolved (documented limit) and fails clearly", async () => {
+      const source = `import strings from "@strings/en.json";\nexport default { ...${JSON.stringify(rest)}, locales: { en: strings } };\n`;
+      const s = await setup(source, "consent.config.ts", {
+        ...splitFiles,
+        "tsconfig.json": JSON.stringify({
+          compilerOptions: { baseUrl: ".", paths: { "@strings/*": ["./strings/*"] } },
+        }),
+      });
+      await expect(s.run()).rejects.toThrow(
+        /^@edgesweden\/consent: cannot load \.\/consent\.config\.ts: .*@strings\/en\.json/s,
+      );
+    });
   });
 
   test("a missing config file fails the build", async () => {
