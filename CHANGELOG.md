@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Continuous integration: every push and pull request runs the full check gate, including
+  the end-to-end suite, on GitHub Actions.
+
 ### Changed
 
 - Package metadata (`repository`, `homepage`, `bugs`) points at the public repository
