@@ -1,0 +1,12 @@
+{
+  "name": "consent-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build && DEMO_VARIANT=nonblocking astro build && DEMO_VARIANT=router astro build"
+  },
+  "dependencies": {
+    "@edgesweden/consent": "workspace:*",
+    "astro": "^7.4.1"
+  }
+}

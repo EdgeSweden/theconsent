@@ -1,0 +1,122 @@
+---
+import { ClientRouter } from "astro:transitions";
+
+interface Props {
+  lang: "en" | "sv";
+  path: string;
+}
+const { lang, path } = Astro.props;
+// DEMO_VARIANT=router builds the demo with Astro's client-side router (see astro.config.ts).
+const router = process.env.DEMO_VARIANT === "router";
+/** The same page in the other language. */
+const counterpart: Record<string, string> = {
+  "/": "/sv/",
+  "/sv/": "/",
+  "/cookies/": "/sv/kakor/",
+  "/sv/kakor/": "/cookies/",
+};
+const copy = {
+  en: {
+    title: "Consent demo",
+    intro: "A neutral site that exercises @edgesweden/consent. Nothing optional runs before you choose.",
+    records: "Consent records",
+    ran: "Gated scripts that ran",
+    dataLayer: "dataLayer (Consent Mode)",
+    none: "No records yet.",
+    reopen: "Cookie settings",
+    withdraw: "Withdraw consent",
+    switchTo: "På svenska",
+    policy: "Cookie policy",
+    policyHref: "/cookies/",
+  },
+  sv: {
+    title: "Samtyckesdemo",
+    intro: "En neutral webbplats som provar @edgesweden/consent. Inget valfritt körs innan du väljer.",
+    records: "Samtyckesposter",
+    ran: "Skript som har körts",
+    dataLayer: "dataLayer (Consent Mode)",
+    none: "Inga poster ännu.",
+    reopen: "Kakinställningar",
+    withdraw: "Återkalla samtycke",
+    switchTo: "In English",
+    policy: "Kakpolicy",
+    policyHref: "/sv/kakor/",
+  },
+}[lang];
+---
+
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{copy.title}</title>
+    {router && <ClientRouter />}
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href={lang === "en" ? "/" : "/sv/"}>{copy.title}</a>
+        <a href={copy.policyHref}>{copy.policy}</a>
+        <a href={counterpart[path]} hreflang={lang === "en" ? "sv" : "en"} lang={lang === "en" ? "sv" : "en"}>{copy.switchTo}</a>
+      </nav>
+    </header>
+    <main>
+      <h1>{copy.title}</h1>
+      <p>{copy.intro}</p>
+      <slot />
+      <h2>{copy.ran}</h2>
+      <ol id="ran"></ol>
+      <h2>{copy.dataLayer}</h2>
+      <ol id="datalayer"></ol>
+      <h2>{copy.records}</h2>
+      <p id="records-empty">{copy.none}</p>
+      <ol id="records"></ol>
+    </main>
+    <footer>
+      <button type="button" data-consent="open">{copy.reopen}</button>
+      <button type="button" id="withdraw">{copy.withdraw}</button>
+    </footer>
+    <script type="text/plain" data-consent="necessary" src="/demo/necessary.js"></script>
+    <script type="text/plain" data-consent="analytics" src="/demo/analytics.js"></script>
+    <script type="text/plain" data-consent="marketing" src="/demo/marketing.js"></script>
+    <script>
+      import { withdraw } from "@edgesweden/consent";
+
+      // Delegated: with the client-side router the button is replaced on every navigation.
+      document.addEventListener("click", (event) => {
+        if ((event.target as Element | null)?.closest?.("#withdraw")) withdraw();
+      });
+
+      // Mirror the gated scripts that ran and the dataLayer entries onto the page.
+      const demo = window as unknown as { demoRan?: string[]; dataLayer?: ArrayLike<unknown>[] };
+      const render = (id: string, items: string[]) => {
+        const list = document.getElementById(id);
+        if (!list || list.childElementCount === items.length) return;
+        list.replaceChildren(
+          ...items.map((text) => {
+            const item = document.createElement("li");
+            item.textContent = text;
+            return item;
+          }),
+        );
+      };
+      setInterval(() => {
+        render("ran", demo.demoRan ?? []);
+        render(
+          "datalayer",
+          (demo.dataLayer ?? []).map((entry) => JSON.stringify(Array.from(entry))),
+        );
+      }, 100);
+
+      // The demo config's record function dispatches each record; list them on the page.
+      document.addEventListener("demo:record", (event) => {
+        const record = (event as CustomEvent<{ action: string; categories: object }>).detail;
+        const item = document.createElement("li");
+        item.dataset.action = record.action;
+        item.textContent = `${record.action} ${JSON.stringify(record.categories)}`;
+        document.getElementById("records")?.append(item);
+        document.getElementById("records-empty")?.remove();
+      });
+    </script>
+  </body>
+</html>

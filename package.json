@@ -1,0 +1,86 @@
+{
+  "name": "@edgesweden/consent",
+  "version": "0.2.2",
+  "description": "Config-driven, CSP-clean cookie-consent banner for static and server-rendered sites, with an Astro integration.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdgeSweden/theconsent.git"
+  },
+  "homepage": "https://github.com/EdgeSweden/theconsent#readme",
+  "bugs": {
+    "url": "https://github.com/EdgeSweden/theconsent/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./astro": {
+      "types": "./dist/astro.d.ts",
+      "import": "./dist/astro.js"
+    },
+    "./gate": {
+      "types": "./dist/gate.d.ts",
+      "import": "./dist/gate.js"
+    },
+    "./gtag": {
+      "types": "./dist/gtag.d.ts",
+      "import": "./dist/gtag.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsup",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "size": "node scripts/check-bundle-imports.ts && node scripts/check-consumer-types.ts && size-limit",
+    "test:e2e": "pnpm build && pnpm --filter ./examples/astro build && playwright test",
+    "check": "node scripts/check.ts",
+    "release:check": "node scripts/release-check.ts"
+  },
+  "peerDependencies": {
+    "astro": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
+    "@size-limit/file": "^14.2.0",
+    "@types/node": "^24.19.2",
+    "astro": "^7.4.1",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "happy-dom": "^21.0.3",
+    "prettier": "^3.9.10",
+    "size-limit": "^14.2.0",
+    "tsup": "^9.0.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}

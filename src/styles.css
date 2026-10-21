@@ -1,0 +1,305 @@
+/*
+ * @edgesweden/consent stylesheet. Every rule is scoped under `.consent`; every themeable value is
+ * a `--consent-*` custom property that the theme sets on the root element with
+ * style.setProperty (plan: CSP). The colour defaults below must match
+ * src/astro/theme-defaults.ts, which the build-time contrast check uses.
+ */
+.consent {
+  --consent-background: #ffffff;
+  --consent-text: #1f1f1f;
+  --consent-muted: #595959;
+  --consent-link: #0a58ca;
+  --consent-border: #d4d4d4;
+  --consent-backdrop: rgb(0 0 0 / 0.5);
+  --consent-focus: #0a58ca;
+  --consent-accept-background: #1f1f1f;
+  --consent-accept-text: #ffffff;
+  --consent-reject-background: #1f1f1f;
+  --consent-reject-text: #ffffff;
+  --consent-settings-background: #ffffff;
+  --consent-settings-text: #1f1f1f;
+  --consent-save-background: #1f1f1f;
+  --consent-save-text: #ffffff;
+  --consent-toggle-on: #1f1f1f;
+  --consent-toggle-off: #767676;
+  --consent-toggle-knob: #ffffff;
+  --consent-radius-box: 0.75rem;
+  --consent-radius-button: 0.5rem;
+  --consent-radius-control: 999px;
+  --consent-font: inherit;
+  --consent-z: 2147483000;
+  --consent-width: min(28rem, calc(100vw - 2rem));
+  --consent-settings-width: min(36rem, calc(100vw - 2rem));
+  --consent-gap: 1rem;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--consent-z);
+  pointer-events: none;
+  font-family: var(--consent-font);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--consent-text);
+}
+
+.consent[hidden],
+.consent [hidden] {
+  display: none !important;
+}
+
+.consent *,
+.consent *::before,
+.consent *::after {
+  box-sizing: border-box;
+}
+
+.consent__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--consent-backdrop);
+  animation: consent-fade 160ms ease-out;
+}
+
+/* Blocking: the backdrop absorbs clicks, which do nothing. Non-blocking: the page stays usable. */
+.consent[data-blocking="true"] .consent__backdrop {
+  pointer-events: auto;
+}
+
+.consent__dialog {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--consent-gap);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.25rem;
+  background: var(--consent-background);
+  color: var(--consent-text);
+  border: 1px solid var(--consent-border);
+  border-radius: var(--consent-radius-box);
+  box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 0.2);
+  animation: consent-in 160ms ease-out;
+}
+
+.consent__banner {
+  width: var(--consent-width);
+}
+
+.consent[data-position^="bottom"] .consent__banner {
+  bottom: 1rem;
+}
+.consent[data-position^="top"] .consent__banner {
+  top: 1rem;
+}
+.consent[data-position$="-left"] .consent__banner {
+  left: 1rem;
+}
+.consent[data-position$="-right"] .consent__banner {
+  right: 1rem;
+}
+.consent[data-position$="-center"] .consent__banner {
+  left: 50%;
+  translate: -50% 0;
+}
+.consent[data-position="center"] .consent__banner,
+.consent__settings {
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+}
+
+.consent__settings {
+  width: var(--consent-settings-width);
+  max-height: min(85vh, calc(100vh - 2rem));
+}
+
+.consent__title {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.consent__text,
+.consent__muted {
+  margin: 0;
+}
+
+.consent__muted {
+  color: var(--consent-muted);
+  font-size: 0.875rem;
+}
+
+.consent a {
+  color: var(--consent-link);
+  text-decoration: underline;
+}
+
+.consent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Accept all and Reject all share size and weight, so neither is more prominent. */
+.consent__button {
+  flex: 1 1 auto;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--consent-radius-button);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.consent__button--accept {
+  background: var(--consent-accept-background);
+  color: var(--consent-accept-text);
+}
+.consent__button--reject {
+  background: var(--consent-reject-background);
+  color: var(--consent-reject-text);
+}
+.consent__button--settings {
+  background: var(--consent-settings-background);
+  color: var(--consent-settings-text);
+  border-color: var(--consent-border);
+}
+.consent__button--save {
+  background: var(--consent-save-background);
+  color: var(--consent-save-text);
+}
+.consent__button--close {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  min-height: 2.25rem;
+  background: transparent;
+  color: var(--consent-text);
+  border-color: var(--consent-border);
+  font-weight: 400;
+}
+
+.consent :focus-visible {
+  outline: 3px solid var(--consent-focus);
+  outline-offset: 2px;
+}
+
+.consent__categories,
+.consent__services {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.consent__category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--consent-border);
+}
+
+.consent__category-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.consent__category-name {
+  flex: 1;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.consent__category > .consent__muted {
+  padding-left: 3.25rem;
+}
+
+.consent__always {
+  font-size: 0.875rem;
+  color: var(--consent-muted);
+}
+
+.consent__services {
+  font-size: 0.875rem;
+  padding-left: 3.25rem;
+}
+
+.consent__service-name {
+  font-weight: 600;
+}
+
+.consent__cookies {
+  display: block;
+  color: var(--consent-muted);
+  font-size: 0.8125rem;
+}
+
+/* A native checkbox styled as a toggle; no role="switch" is needed. */
+.consent__switch {
+  appearance: none;
+  flex: 0 0 auto;
+  position: relative;
+  width: 2.5rem;
+  height: 1.5rem;
+  margin: 0;
+  border-radius: var(--consent-radius-control);
+  background: var(--consent-toggle-off);
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.consent__switch::before {
+  content: "";
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: var(--consent-radius-control);
+  background: var(--consent-toggle-knob);
+  transition: translate 120ms ease-out;
+}
+.consent__switch:checked {
+  background: var(--consent-toggle-on);
+}
+.consent__switch:checked::before {
+  translate: 1rem 0;
+}
+.consent__switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Forced colours replace backgrounds; a border and the knob position keep the state visible. */
+@media (forced-colors: active) {
+  .consent__switch {
+    border: 1px solid CanvasText;
+  }
+  .consent__switch::before {
+    background: CanvasText;
+  }
+  .consent__switch:checked {
+    background: Highlight;
+  }
+}
+
+@keyframes consent-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes consent-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consent *,
+  .consent *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}

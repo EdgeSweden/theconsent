@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    // Type-check the demo against the sources: check:types runs before check:build.
+    "paths": {
+      "@edgesweden/consent": ["./src/core/index.ts"],
+      "@edgesweden/consent/astro": ["./src/astro/index.ts"]
+    }
+  },
+  "include": ["src", "test", "scripts", "examples/astro/src", "examples/astro/*.ts", "*.ts"],
+  "exclude": ["node_modules", "dist", "examples/*/dist"]
+}

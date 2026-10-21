@@ -1,0 +1,20 @@
+[
+  {
+    "name": ". (core incl. stylesheet)",
+    "path": ["dist/index.js", "dist/styles.css"],
+    "limit": "6 KB",
+    "gzip": true
+  },
+  {
+    "name": "./gate",
+    "path": ["dist/gate.js"],
+    "limit": "1 KB",
+    "gzip": true
+  },
+  {
+    "name": "./gtag",
+    "path": ["dist/gtag.js"],
+    "limit": "1 KB",
+    "gzip": true
+  }
+]

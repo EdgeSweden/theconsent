@@ -1,0 +1,11 @@
+dist/
+.astro/
+examples/*/dist/
+examples/*/dist-nonblocking/
+examples/*/dist-router/
+node_modules/
+pnpm-lock.yaml
+test-results/
+playwright-report/
+docs/plan.md
+test/.tmp/
