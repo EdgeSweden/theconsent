@@ -1,0 +1,50 @@
+name: release
+
+# A vX.Y.Z tag on main runs the full CI job, then the release gates, then stages the package on
+# npm with provenance through a stage-only trusted publisher. No token is stored; the version goes
+# live only when a maintainer approves it with 2FA (plan: Releases; docs/releasing.md).
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: tag is on main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main ||
+            { echo "::error::$GITHUB_REF_NAME is not on main."; exit 1; }
+
+      - run: pnpm install --frozen-lockfile
+      - name: check:build
+        run: pnpm build
+      # Tag equals the package.json version, dated non-empty CHANGELOG entry, packed file set.
+      - name: release gate
+        run: node scripts/release-check.ts "$GITHUB_REF_NAME"
+
+      # Staged publishing needs npm >= 11.15.0; Node 22 ships npm 10.
+      - run: npm install --global npm@^11.15.0
+      - name: stage
+        run: npm stage publish --provenance --access public

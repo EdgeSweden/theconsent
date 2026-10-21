@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { releaseProblems, type ReleaseInput } from "../../scripts/lib/release-rules.ts";
 
-const changelog = "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-20\n\n### Added\n";
+const changelog =
+  "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-20\n\n### Added\n\n- First release.\n";
 const good: ReleaseInput = {
   status: "",
   version: "0.1.0",
@@ -27,10 +28,45 @@ describe("releaseProblems", () => {
     expect(releaseProblems({ ...good, changelog: "## [0.1.0]\n" })).toHaveLength(1);
     expect(releaseProblems({ ...good, changelog: "## [0.1.0.1] - 2026-10-20\n" })).toHaveLength(1);
   });
+  test("refuses an entry that lists no changes", () => {
+    const empty = "## [0.1.0] - 2026-10-20\n\n### Added\n\n## [0.0.1] - 2026-10-01\n\n- Older.\n";
+    expect(releaseProblems({ ...good, changelog: empty })).toEqual([
+      expect.stringMatching(/entry for 0\.1\.0 lists no changes/),
+    ]);
+    expect(releaseProblems({ ...good, changelog: "## [0.1.0] - 2026-10-20\n" })).toEqual([
+      expect.stringMatching(/lists no changes/),
+    ]);
+  });
+  test("accepts a tag equal to v + version", () => {
+    expect(releaseProblems({ ...good, tag: "v0.1.0" })).toEqual([]);
+  });
+  test("refuses a tag that does not match the version", () => {
+    expect(releaseProblems({ ...good, tag: "v0.1.1" })).toEqual([
+      expect.stringMatching(/tag v0\.1\.1 does not match package\.json version 0\.1\.0/),
+    ]);
+  });
+  test("refuses a tag that is not vX.Y.Z", () => {
+    for (const tag of ["0.1.0", "v0.1", "v0.1.0-rc.1", "release"]) {
+      expect(releaseProblems({ ...good, tag })).toEqual([expect.stringMatching(/is not vX\.Y\.Z/)]);
+    }
+  });
+  test("skips the clean-tree check in CI and keeps every other rule", () => {
+    const dirty = { ...good, status: " M package.json\n", ci: true };
+    expect(releaseProblems(dirty)).toEqual([]);
+    expect(releaseProblems({ ...dirty, tag: "v9.9.9" })).toHaveLength(1);
+  });
   test("refuses packed files outside dist/ and the top-level allow list", () => {
     expect(
       releaseProblems({ ...good, packedFiles: [...good.packedFiles, "src/core/index.ts"] }),
     ).toEqual([expect.stringMatching(/outside the allowed set: src\/core\/index\.ts/)]);
+  });
+  test("refuses a pack without dist/, as when the package was not built", () => {
+    expect(
+      releaseProblems({
+        ...good,
+        packedFiles: good.packedFiles.filter((f) => !f.startsWith("dist/")),
+      }),
+    ).toEqual([expect.stringMatching(/no dist\/ files \(run pnpm build first\)/)]);
   });
   test("refuses a pack missing CHANGELOG.md or dist/", () => {
     expect(
