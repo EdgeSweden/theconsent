@@ -16,6 +16,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- `validateConfig` reports schema errors and cross-field errors (locale strings, link tokens,
+  button order, colours and contrast, Consent Mode mapping, record URL) in one pass, so a config
+  with both kinds is fixed in one round. A part that is itself malformed is reported once, by
+  the schema, and not again by a rule that depends on it.
 - The Astro integration loads the config module through the module runner of Astro's own Vite
   instead of Node's `import()`. A config can import JSON files, relative modules without file
   extensions and installed packages, and needs no particular Node version for TypeScript. In

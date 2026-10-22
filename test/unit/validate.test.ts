@@ -40,6 +40,113 @@ describe("validateConfig", () => {
     expect(result.ok ? [] : result.errors.map((e) => e.path)).toEqual([""]);
   });
 
+  describe("one pass: schema and cross-field errors together", () => {
+    const paths = (mutate: (config: Mutable) => void) => errorsOf(mutate).map((e) => e.path);
+    const sv = (config: Mutable) => config.locales["sv"]!;
+
+    test("an unknown key and a missing locale string are both reported", () => {
+      expect(
+        paths((c) => {
+          c["extra"] = true;
+          delete sv(c).categories["analytics"];
+        }),
+      ).toEqual(expect.arrayContaining(["extra", "locales.sv.categories.analytics"]));
+    });
+
+    test("cross-field rules run next to unrelated schema errors", () => {
+      const result = check((c) => {
+        c["extra"] = 1;
+        c.defaultLocale = "de";
+        c.theme = { colors: { border: "nope", acceptText: "#777777" } };
+        c.record = "//example.com/consent";
+      });
+      expect(result.ok ? [] : result.errors.map((e) => e.path)).toEqual(
+        expect.arrayContaining(["extra", "defaultLocale", "theme.colors.border", "record"]),
+      );
+    });
+
+    test("contrast is checked next to unrelated schema errors", () => {
+      const result = check((c) => {
+        c["extra"] = 1;
+        c.theme = { colors: { acceptText: "#777777" } };
+      });
+      expect(result.warnings.map((w) => w.path)).toEqual(["theme.colors.acceptText"]);
+    });
+
+    test("a locale with an unrelated schema error still gets its category-string check", () => {
+      expect(
+        paths((c) => {
+          (sv(c) as Record<string, unknown>)["acceptAll"] = "";
+          delete sv(c).categories["marketing"];
+        }),
+      ).toEqual(
+        expect.arrayContaining(["locales.sv.acceptAll", "locales.sv.categories.marketing"]),
+      );
+    });
+
+    test("a category with an unrelated error still counts for the locale checks", () => {
+      const errors = paths((c) => {
+        (c.categories[1] as Record<string, unknown>)["extra"] = 1;
+        (c.categories[1]!.services![0] as Record<string, unknown>)["extra"] = 1;
+      });
+      expect(errors.sort()).toEqual(["categories[1].extra", "categories[1].services[0].extra"]);
+    });
+
+    test("strings for a category with an unrelated error are still required", () => {
+      expect(
+        paths((c) => {
+          (c.categories[1] as Record<string, unknown>)["required"] = "yes";
+          delete sv(c).categories["analytics"];
+          delete sv(c).services!["stats"];
+        }),
+      ).toEqual(
+        expect.arrayContaining([
+          "categories[1].required",
+          "locales.sv.categories.analytics",
+          "locales.sv.services.stats",
+        ]),
+      );
+    });
+
+    test("a malformed part is reported once, by the schema", () => {
+      expect(paths((c) => void (c.defaultLocale = ""))).toEqual(["defaultLocale"]);
+      expect(paths((c) => void (c.categories = []))).toEqual(["categories"]);
+      // The strings for the misspelt id are not also reported as strays.
+      expect(paths((c) => void (c.categories[0]!.id = "Bad Id"))).toEqual(["categories[0].id"]);
+      expect(paths((c) => void (c.categories[0]!.services![0]!.id = "Bad Id"))).toEqual([
+        "categories[0].services[0].id",
+      ]);
+      // Items that are not objects, or services that are not an array.
+      const any = (c: Mutable) => c as unknown as { categories: unknown[] };
+      expect(paths((c) => void (any(c).categories[1] = "analytics"))).toEqual(["categories[1]"]);
+      expect(paths((c) => void (any(c).categories[1] = null))).toEqual(["categories[1]"]);
+      expect(
+        paths(
+          (c) => void ((c.categories[1] as Record<string, unknown>)["services"] = { id: "stats" }),
+        ),
+      ).toEqual(["categories[1].services"]);
+      expect(
+        paths((c) => void ((c.categories[1] as Record<string, unknown>)["services"] = ["stats"])),
+      ).toEqual(["categories[1].services[0]"]);
+      // A colour that is not a string is not replaced by a default in the contrast check.
+      const strict = check((c) => {
+        c.theme = { colors: { text: "#777", background: 5 as unknown as string } };
+        c.validation = { strictContrast: true };
+      });
+      expect(strict.ok ? [] : strict.errors.map((e) => e.path)).toEqual([
+        "theme.colors.background",
+      ]);
+      expect(strict.warnings).toEqual([]);
+      // A link without a usable id: its tokens are not reported as unresolved.
+      expect(paths((c) => void (c.locales["en"]!.links![0]!.id = ""))).toEqual([
+        "locales.en.links[0].id",
+      ]);
+      expect(paths((c) => void ((c as Record<string, unknown>)["locales"] = []))).toEqual([
+        "locales",
+      ]);
+    });
+  });
+
   describe("schemaVersion and policyVersion", () => {
     test("schemaVersion must be 1", () => {
       expectError((c) => void (c.schemaVersion = 2 as never), "schemaVersion");
