@@ -26,6 +26,17 @@ export function buttonOrder(config: ConsentConfig): ButtonId[] {
 }
 
 /**
+ * An id prefix no element in `doc` uses yet: `consent-`, else `consent1-`, `consent2-`, … so a
+ * host element with the same id can never capture an `aria-labelledby` or `for` reference.
+ */
+function idPrefix(doc: Document): string {
+  let n = 0;
+  const prefix = (): string => `consent${n === 0 ? "" : n}-`;
+  while (doc.querySelector(`[id^="${prefix()}"]`) !== null) n++;
+  return prefix();
+}
+
+/**
  * Builds the banner and the settings dialog (plan: Runtime behaviour, Accessibility). In blocking
  * mode nothing dismisses the banner except a choice: no close control, Escape and backdrop clicks
  * are ignored, and the rest of the page is inert while a dialog is open.
@@ -42,11 +53,14 @@ export function createUi(
   const dimmed = (config.layout?.backdrop ?? "dim") === "dim";
   const optional = optionalIds(config);
   const all = (granted: boolean) => Object.fromEntries(optional.map((id) => [id, granted]));
+  const p = idPrefix(doc);
 
   let view: View = null;
   /** Element focused before the current dialog opened; focus returns here on close. */
   let opener: HTMLElement | null = null;
   const inerted: Element[] = [];
+  /** Keeps the page inert while a blocking dialog is open (content added later included). */
+  let observer: MutationObserver | null = null;
 
   const button = (kind: string, label: string, onClick: () => void): HTMLButtonElement => {
     const el = h(
@@ -73,19 +87,14 @@ export function createUi(
     hidden: true,
     ...(titleText === ""
       ? { "aria-label": strings.dialogLabel ?? "" }
-      : { "aria-labelledby": "consent-title" }),
-    "aria-describedby": "consent-description",
+      : { "aria-labelledby": `${p}title` }),
+    "aria-describedby": `${p}description`,
     ...(blocking ? { "aria-modal": "true" } : {}),
   });
   if (titleText !== "")
-    banner.append(h(doc, "h2", { id: "consent-title", class: "consent__title" }, [strings.title]));
+    banner.append(h(doc, "h2", { id: `${p}title`, class: "consent__title" }, [strings.title]));
   banner.append(
-    h(
-      doc,
-      "p",
-      { id: "consent-description", class: "consent__text" },
-      renderText(strings.description),
-    ),
+    h(doc, "p", { id: `${p}description`, class: "consent__text" }, renderText(strings.description)),
     h(
       doc,
       "div",
@@ -104,8 +113,8 @@ export function createUi(
     const text = strings.categories[category.id];
     const required = category.required === true;
     // Distinct prefixes: no category id can make one element's id equal another's.
-    const inputId = `consent-switch-${category.id}`;
-    const descriptionId = `consent-about-${category.id}`;
+    const inputId = `${p}switch-${category.id}`;
+    const descriptionId = `${p}about-${category.id}`;
     const input = h(doc, "input", {
       type: "checkbox",
       id: inputId,
@@ -160,21 +169,19 @@ export function createUi(
     role: "dialog",
     tabindex: "-1",
     hidden: true,
-    "aria-labelledby": "consent-settings-title",
+    "aria-labelledby": `${p}settings-title`,
     ...(blocking ? { "aria-modal": "true" } : {}),
   });
   settings.append(
-    h(doc, "h2", { id: "consent-settings-title", class: "consent__title" }, [
-      strings.settingsTitle,
-    ]),
+    h(doc, "h2", { id: `${p}settings-title`, class: "consent__title" }, [strings.settingsTitle]),
   );
   if (strings.settingsDescription !== undefined) {
-    settings.setAttribute("aria-describedby", "consent-settings-description");
+    settings.setAttribute("aria-describedby", `${p}settings-description`);
     settings.append(
       h(
         doc,
         "p",
-        { id: "consent-settings-description", class: "consent__text" },
+        { id: `${p}settings-description`, class: "consent__text" },
         renderText(strings.settingsDescription),
       ),
     );
@@ -205,15 +212,28 @@ export function createUi(
   const active = (): HTMLElement | null =>
     view === "banner" ? banner : view === "settings" ? settings : null;
 
+  /** Makes every other child of body inert; one that already was stays host-owned. */
+  function inertSiblings(): void {
+    for (const sibling of doc.body.children) {
+      if (sibling.contains(root) || sibling.hasAttribute("inert")) continue;
+      sibling.setAttribute("inert", "");
+      if (!inerted.includes(sibling)) inerted.push(sibling);
+    }
+  }
+
   function setInert(on: boolean): void {
-    if (on && inerted.length === 0 && blocking && doc.body) {
-      for (const sibling of doc.body.children) {
-        if (sibling !== root && !sibling.hasAttribute("inert")) {
-          sibling.setAttribute("inert", "");
-          inerted.push(sibling);
-        }
-      }
+    if (on && observer === null && blocking && doc.body) {
+      inertSiblings();
+      // Content added, or re-enabled by the host, while open is made inert too; a host that
+      // removes the root frees the page.
+      observer = new doc.defaultView!.MutationObserver(() => {
+        if (root.isConnected) inertSiblings();
+        else setInert(false);
+      });
+      observer.observe(doc.body, { childList: true, subtree: true, attributeFilter: ["inert"] });
     } else if (!on) {
+      observer?.disconnect();
+      observer = null;
       for (const el of inerted.splice(0)) el.removeAttribute("inert");
     }
   }

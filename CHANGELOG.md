@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- In blocking mode, content the page adds while the dialog is open is made inert too, `inert`
+  removed by the host is re-applied, and the page is freed if the host removes the banner.
+- The banner's element ids no longer collide with ids on the host page: when an element already
+  uses an id starting with `consent-`, the banner uses `consent1-` (and so on), so its
+  `aria-labelledby`, `aria-describedby` and label references always point inside the banner.
+- `theme.vars` is filtered at runtime as validation filters it: names outside `--consent-*` and
+  names of colour tokens are skipped, so a config mounted without `validateConfig` cannot
+  bypass the contrast check.
+
 ### Added
 
 - Continuous integration: every push and pull request runs the full check gate, including

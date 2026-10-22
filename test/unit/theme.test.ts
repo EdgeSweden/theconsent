@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { ConsentConfig } from "../../src/astro/schema";
 import { baseConfig } from "./fixtures";
+import { COLOR_VAR } from "../../src/core/theme";
+import { colorVar, THEME_COLORS } from "../../src/core/tokens";
 import { harness } from "./helpers";
 
 async function themed(extra: Partial<ConsentConfig>) {
@@ -50,6 +52,44 @@ afterEach(() => {
 });
 
 describe("theme", () => {
+  test("vars outside --consent-* or naming a colour token are skipped at runtime", async () => {
+    const t = await themed({
+      theme: {
+        vars: {
+          "--consent-gap": "2rem",
+          "--consent-text": "#ccc",
+          "--consent-accept-background": "#eee",
+          "--other": "1px",
+        } as Record<`--consent-${string}`, string>,
+      },
+    });
+    expect(t.props["--consent-gap"]).toBe("2rem");
+    expect(t.setProperty.mock.calls.map(([name]) => name)).not.toEqual(
+      expect.arrayContaining(["--consent-text"]),
+    );
+    expect(Object.keys(t.props)).not.toContain("--consent-accept-background");
+    expect(Object.keys(t.props)).not.toContain("--other");
+  });
+  test("COLOR_VAR matches exactly the colour tokens' custom properties", () => {
+    for (const token of THEME_COLORS) expect(COLOR_VAR.test(colorVar(token)), token).toBe(true);
+    for (const name of [
+      "--consent-gap",
+      "--consent-width",
+      "--consent-text-x",
+      "--consent-toggle",
+      "--consent-accept",
+    ]) {
+      expect(COLOR_VAR.test(name), name).toBe(false);
+    }
+    // Every alternative the pattern allows is a token: count the names it can match.
+    const names = ["background", "text", "muted", "link", "border", "backdrop", "focus"]
+      .concat(
+        ["accept", "reject", "settings", "save"].flatMap((b) => [`${b}-background`, `${b}-text`]),
+      )
+      .concat(["on", "off", "knob"].map((s) => `toggle-${s}`));
+    expect(names.map((n) => `--consent-${n}`).sort()).toEqual(THEME_COLORS.map(colorVar).sort());
+  });
+
   test("colours become --consent-* custom properties on the root via setProperty", async () => {
     const t = await themed({
       theme: { colors: { background: "#000", text: "#fff", acceptBackground: "rebeccapurple" } },
