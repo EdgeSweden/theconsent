@@ -48,6 +48,17 @@ Releases are published by `.github/workflows/release.yml` from a `vX.Y.Z` tag on
 
    If anything looks wrong, reject it with `npm stage reject <stage-id>` and fix forward.
 
+## First release (0.3.0)
+
+npm already holds 0.1.0–0.2.1 of this package from an earlier implementation of the same
+contract (see the introduction of `CHANGELOG.md`). After 0.3.0 is approved, a maintainer with 2FA
+checks that `latest` points to it and deprecates the earlier versions once:
+
+```sh
+npm view @edgesweden/consent dist-tags
+npm deprecate @edgesweden/consent@">=0.1.0 <0.3.0" "Superseded by 0.3.0, a reimplementation with the same config and cookie contract; data-consent-type is now data-type, default position is bottom-center."
+```
+
 Fix forward, always. A failed or wrong release is corrected by a new patch version through a new
 pull request and a new tag. A published version is never unpublished, and a pushed tag is never
 moved or deleted, also when the workflow failed before staging. A transient failure, such as a

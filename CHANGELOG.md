@@ -4,7 +4,20 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+The 0.1.0–0.2.2 entries below describe this codebase's local, unpublished milestones. The
+versions 0.1.0–0.2.1 that exist on npm were published from a previous implementation with the
+same config and cookie contract; 0.3.0 is the first version of this codebase on npm. Visible
+differences from those npm versions: gated scripts use `data-type` instead of
+`data-consent-type`, and the default `layout.position` is `bottom-center`.
+
 ## [Unreleased]
+
+## [0.3.0] - 2026-10-22
+
+First version of this codebase published to npm. Earlier npm versions (0.1.0–0.2.1) came from
+a previous implementation of the same config and cookie contract; when upgrading from them,
+rename `data-consent-type` on gated scripts to `data-type`, and set `layout.position: "center"`
+if you relied on the old default.
 
 ### Fixed
 

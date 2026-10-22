@@ -1,6 +1,6 @@
 {
   "name": "@edgesweden/consent",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Config-driven, CSP-clean cookie-consent banner for static and server-rendered sites, with an Astro integration.",
   "license": "MIT",
   "repository": {
