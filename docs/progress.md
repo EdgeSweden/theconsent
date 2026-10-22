@@ -24,3 +24,4 @@
 - [x] (A) P4.6 - Hardening: late content stays inert, unique id prefix, theme.vars runtime guard (plan: Accessibility, Validation, CSP)
 - [x] (A) P4.7 - Release 0.3.0, the first published version (plan: Releases)
 - [x] (A) P5.1 - Linked pages stay readable: the banner on a page it links to opens without backdrop, inert or focus trap, docked at the bottom (plan: Runtime behaviour, Accessibility, Size budget)
+- [x] (A) P5.2 - Release 0.4.0: linked pages stay readable (plan: Releases)
