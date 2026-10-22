@@ -177,6 +177,147 @@ test.describe("blocking mode", () => {
   });
 });
 
+test.describe("a page the banner links to (decision #70)", () => {
+  /** Two animation frames: the spacer is sized by a ResizeObserver, which reports in the next one. */
+  const frames = (page: Page) =>
+    page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
+
+  /**
+   * Waits until the page stops growing: the demo mirrors the scripts that ran and the dataLayer into
+   * the page every 100 ms, so its height changes for a while after load.
+   */
+  async function settled(page: Page): Promise<void> {
+    await expect(page.locator("#ran li")).not.toHaveCount(0);
+    let last = -1;
+    let stable = 0;
+    await expect
+      .poll(
+        async () => {
+          const height = await page.evaluate(() => document.documentElement.scrollHeight);
+          stable = height === last ? stable + 1 : 0;
+          last = height;
+          return stable;
+        },
+        { intervals: [150] },
+      )
+      .toBeGreaterThanOrEqual(3);
+    await frames(page);
+  }
+
+  /** The banner's box and the viewport, scrolled to the end and measured in one step. */
+  async function geometry(page: Page) {
+    await settled(page);
+    return page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const banner = document.querySelector(".consent__banner")!.getBoundingClientRect();
+      const content = [...document.body.children].filter(
+        (el) => !el.classList.contains("consent") && el.getAttribute("aria-hidden") !== "true",
+      );
+      const contentBottom = Math.max(...content.map((el) => el.getBoundingClientRect().bottom));
+      return {
+        left: banner.left,
+        right: window.innerWidth - banner.right,
+        bottom: window.innerHeight - banner.bottom,
+        width: window.innerWidth,
+        contentBottom,
+        bannerTop: banner.top,
+      };
+    });
+  }
+
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 375, height: 667 },
+  ]) {
+    test(`the policy is readable: no backdrop, nothing inert, docked 1rem from the bottom (${viewport.width}px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/cookies/");
+      await expect(banner(page)).toBeVisible();
+      await expect(page.locator(".consent__backdrop")).toHaveCount(0);
+      await expect(page.locator("body > [inert]")).toHaveCount(0);
+      await expect(banner(page)).not.toHaveAttribute("aria-modal", "true");
+      const g = await geometry(page);
+      expect(g.bottom).toBeCloseTo(16, 0);
+      // bottom-center: centred, and on a narrow screen the side margins equal the bottom one.
+      expect(Math.abs(g.left - g.right)).toBeLessThan(2);
+      if (viewport.width < 480) expect(g.left).toBeCloseTo(16, 0);
+      // The end of the page is above the banner, not behind it.
+      expect(g.contentBottom).toBeLessThanOrEqual(g.bannerTop + 1);
+      // The page itself is usable: its links can be followed.
+      await expect(page.getByRole("link", { name: "Consent demo" }).first()).toBeEnabled();
+      await expectNoAxeViolations(page);
+    });
+  }
+
+  test("a choice there closes the banner and removes the spacer", async ({ page }) => {
+    await page.goto("/cookies/");
+    await settled(page);
+    const before = await page.evaluate(() => document.documentElement.scrollHeight);
+    await button(banner(page), "Reject all").click();
+    await expect(banner(page)).toBeHidden();
+    expect(await consentCookie(page)).toMatchObject({ c: { analytics: false, marketing: false } });
+    await expect(page.locator('body > [aria-hidden="true"]:not(.consent)')).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
+      before,
+    );
+  });
+
+  test("opening and closing the settings dialog there does not move the page", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("/cookies/");
+    const state = () =>
+      page.evaluate(() => {
+        const spacer = document.body.lastElementChild as HTMLElement;
+        return {
+          scrollY: window.scrollY,
+          scrollHeight: document.documentElement.scrollHeight,
+          spacer: spacer.getBoundingClientRect().height,
+        };
+      });
+    await settled(page);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await frames(page);
+    const before = await state();
+    const bannerHeight = (await banner(page).boundingBox())!.height;
+    expect(before.spacer).toBeCloseTo(bannerHeight + 16, 0);
+    expect(before.scrollY).toBeGreaterThan(0);
+
+    await button(banner(page), "Settings").click();
+    await expect(settings(page)).toBeVisible();
+    await frames(page);
+    expect(await state()).toEqual(before);
+
+    await page.keyboard.press("Escape");
+    await expect(banner(page)).toBeVisible();
+    await frames(page);
+    expect(await state()).toEqual(before);
+  });
+
+  test("Escape does not dismiss it, and the settings dialog stays centred in the viewport", async ({
+    page,
+  }) => {
+    await page.goto("/cookies/");
+    await page.keyboard.press("Escape");
+    await expect(banner(page)).toBeVisible();
+    await button(banner(page), "Settings").click();
+    await expect(settings(page)).toBeVisible();
+    const box = (await settings(page).boundingBox())!;
+    const size = page.viewportSize()!;
+    expect(Math.abs(box.x + box.width / 2 - size.width / 2)).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - size.height / 2)).toBeLessThan(2);
+  });
+
+  test("other pages still block", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".consent__backdrop")).toHaveCount(1);
+    await expect(page.locator("body > [inert]").first()).toBeAttached();
+  });
+});
+
 test.describe("non-blocking mode", () => {
   test("close stores nothing and the banner returns on the next page", async ({ page }) => {
     await page.goto(`${NON_BLOCKING}/`);

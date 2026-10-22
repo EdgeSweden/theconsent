@@ -36,10 +36,15 @@ function idPrefix(doc: Document): string {
   return prefix();
 }
 
+/** Trailing slashes do not distinguish two paths here. */
+const trim = (path: string): string => path.replace(/\/+$/, "");
+
 /**
  * Builds the banner and the settings dialog (plan: Runtime behaviour, Accessibility). In blocking
  * mode nothing dismisses the banner except a choice: no close control, Escape and backdrop clicks
- * are ignored, and the rest of the page is inert while a dialog is open.
+ * are ignored, and the rest of the page is inert while a dialog is open. On a page the banner links
+ * to, the page stays readable: no backdrop, no inert, no focus trap, the banner at the bottom and a
+ * spacer of its height at the end of body, so the end of the page is never hidden (decision #70).
  */
 export function createUi(
   doc: Document,
@@ -49,8 +54,22 @@ export function createUi(
   actions: BannerActions,
   renderText: (text: string) => Array<Node | string>,
 ): ConsentUi & { root: HTMLElement; show(): void; destroy(): void } {
-  const blocking = config.layout?.blocking ?? true;
-  const dimmed = (config.layout?.backdrop ?? "dim") === "dim";
+  const here = doc.defaultView?.location;
+  const readable =
+    !!here &&
+    (strings.links ?? []).some((link) => {
+      // An unparseable href (an unvalidated config, an about:srcdoc frame) is simply not this page.
+      try {
+        const url = new URL(link.href, here.href);
+        return url.origin === here.origin && trim(url.pathname) === trim(here.pathname);
+      } catch {
+        return false;
+      }
+    });
+  const modal = config.layout?.blocking ?? true;
+  const blocking = modal && !readable;
+  const dimmed = !readable && (config.layout?.backdrop ?? "dim") === "dim";
+  const position = config.layout?.position ?? "bottom-center";
   const optional = optionalIds(config);
   const all = (granted: boolean) => Object.fromEntries(optional.map((id) => [id, granted]));
   const p = idPrefix(doc);
@@ -102,7 +121,7 @@ export function createUi(
       buttonOrder(config).map((id) => firstLayer[id]()),
     ),
   );
-  if (!blocking) {
+  if (!modal) {
     banner.append(button("close", strings.close, () => dismiss()));
   }
 
@@ -202,11 +221,24 @@ export function createUi(
   const root = h(doc, "div", {
     class: "consent",
     hidden: true,
-    "data-position": config.layout?.position ?? "bottom-center",
+    // A linked page keeps the alignment at the bottom: center → bottom-center, top-left → bottom-left.
+    "data-position": readable ? `bottom-${position.split("-")[1] ?? "center"}` : position,
     "data-blocking": blocking ? "true" : "false",
+    "data-readable": readable,
   });
   if (dimmed) root.append(h(doc, "div", { class: "consent__backdrop", "aria-hidden": "true" }));
   root.append(banner, settings);
+
+  // A linked page: an in-flow spacer as tall as the banner plus its 1rem margin keeps the end of the
+  // page scrollable into view above it.
+  const spacer = h(doc, "div", { "aria-hidden": "true" });
+  const sizer = readable
+    ? new doc.defaultView!.ResizeObserver(() => {
+        // While the settings dialog hides the banner, its last height stays (no jump).
+        if (!banner.hidden)
+          spacer.style.setProperty("height", `calc(${banner.offsetHeight}px + 1rem)`);
+      })
+    : null;
 
   // --- Behaviour -----------------------------------------------------------------------------
   const active = (): HTMLElement | null =>
@@ -245,6 +277,14 @@ export function createUi(
     root.hidden = next === null;
     root.toggleAttribute("data-open", next !== null);
     setInert(next !== null);
+    // Kept while the settings dialog is open too, so the page does not jump when it opens.
+    if (readable && next !== null) {
+      doc.body.append(spacer);
+      sizer?.observe(banner);
+    } else {
+      spacer.remove();
+      sizer?.disconnect();
+    }
     active()?.focus();
   }
 
@@ -295,7 +335,7 @@ export function createUi(
       if (view === "settings") {
         event.preventDefault();
         closeSettings();
-      } else if (view === "banner" && !blocking) {
+      } else if (view === "banner" && !modal) {
         event.preventDefault();
         dismiss();
       }
@@ -340,6 +380,8 @@ export function createUi(
       doc.removeEventListener("focusin", onFocusIn);
       setInert(false);
       view = null;
+      spacer.remove();
+      sizer?.disconnect();
       root.remove();
     },
     openSettings: (from?: Element | null) => openSettings(false, from ?? doc.activeElement),

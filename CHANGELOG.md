@@ -12,6 +12,16 @@ differences from those npm versions: gated scripts use `data-type` instead of
 
 ## [Unreleased]
 
+### Added
+
+- On a page the banner links to (your policy), the banner no longer blocks the page: no backdrop,
+  no `inert`, no focus trap, and it is shown at the bottom with a spacer below the page so the
+  policy can be read in full before choosing. A blocking banner still has no close control there; other pages are unchanged.
+
+### Changed
+
+- The size budget of the core including its stylesheet is 6.25 KB gzipped (was 6 KB).
+
 ## [0.3.0] - 2026-10-22
 
 First version of this codebase published to npm. Earlier npm versions (0.1.0–0.2.1) came from

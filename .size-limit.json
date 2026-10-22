@@ -2,7 +2,7 @@
   {
     "name": ". (core incl. stylesheet)",
     "path": ["dist/index.js", "dist/styles.css"],
-    "limit": "6 KB",
+    "limit": "6.25 KB",
     "gzip": true
   },
   {

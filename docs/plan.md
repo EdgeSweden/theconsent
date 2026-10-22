@@ -37,7 +37,8 @@ Releases). Default cookie name `consent`.
    "decide later" (nothing stored, banner returns on the next page), never reject.
 3. **Strict-CSP clean.** No authored `style=""` attributes, no `setAttribute("style", …)`, no
    `style.cssText`, no `<style>` injection, no `eval`, no HTML in strings. Theme values become CSS
-   custom properties applied one at a time through `element.style.setProperty`; the browser
+   custom properties applied one at a time through `element.style.setProperty` (and a linked
+   page's spacer height, set the same way); the browser
    serialises these into the element's style attribute, but property-level CSSOM mutation is not
    governed by `style-src`. The stylesheet ships as a bundled asset. Works under Astro's hashed
    per-page CSP with no policy change.
@@ -45,7 +46,7 @@ Releases). Default cookie name `consent`.
    keys are additive within a major version. No runtime fetch of config.
 5. **No framework in the core.** `mount(config)` on a `Document`; the Astro integration only bundles
    the config and injects one script.
-6. **Small.** Core + stylesheet ≤ 6 KB gzipped; the Consent Mode and gating adapters are separate
+6. **Small.** Core + stylesheet ≤ 6.25 KB gzipped; the Consent Mode and gating adapters are separate
    entry points so a site pays only for what it imports.
 7. **Accessible by default.** WCAG 2.1 AA: dialog semantics, focus management, keyboard-complete,
    reduced-motion aware, visible focus. Colour contrast is a config responsibility; the integration
@@ -192,6 +193,19 @@ Attributes: `Max-Age` from `cookie.maxAgeDays`, `SameSite=Lax`, `Secure` when se
 visitor is not asked again; storing the refusal is strictly necessary. An unparseable cookie is
 treated as absent.
 
+### Linked pages
+
+On a page whose path equals the path of a same-origin link in the active locale's `links` (query,
+hash and a trailing slash ignored), the policy the banner points to must be readable before a
+choice: the banner opens without backdrop, without `inert`, without `aria-modal` and without a
+focus trap (`data-readable` on the root); it is shown at the bottom with the horizontal alignment
+of `layout.position` (`center` → `bottom-center`, `top-*` → `bottom-*`), and while it shows an
+empty spacer as tall as the banner plus 1rem at the end of `body` keeps the end of the page
+readable above it. The settings dialog keeps its centred position but, like the banner, is not
+modal there. A blocking
+banner still has no close control and Escape still does nothing; every other page is unchanged
+(decision #70).
+
 ### Choice
 
 Accept all / Reject all on the first layer; the settings dialog has one switch per non-required
@@ -261,7 +275,9 @@ nothing can be stored without the script.
   while blocking.
 - Escape closes the settings dialog (returning to the banner if it was the opener) and does nothing
   on a blocking banner, as do clicks and taps on the backdrop.
-- Blocking mode applies `inert` to sibling content while open and removes it on close.
+- Blocking mode applies `inert` to sibling content while open and removes it on close, except on a
+  linked page (Runtime behaviour, Linked pages), where nothing is made inert, `aria-modal` is
+  absent and focus is not trapped.
 - Switches are native checkboxes styled as toggles; no `role="switch"` is needed.
 - Buttons are real `<button>` elements with visible text; the focus ring uses the `focus` theme
   colour and is never removed.
@@ -275,8 +291,8 @@ with no additions:
 
 - no authored `style=""` attributes, no `setAttribute("style", …)`, no `cssText`, no `<style>`
   elements; each theme value is applied individually through `style.setProperty` on the banner's
-  root element, which CSP permits even though the browser serialises the result into a style
-  attribute;
+  root element, as is a linked page's spacer height, which CSP permits even though the browser
+  serialises the result into a style attribute;
 - no inline scripts; the Astro integration injects a bundled module that Astro's own CSP support
   hashes like any other page script;
 - no `eval`, `new Function`, `innerHTML` or `insertAdjacentHTML`;
@@ -489,7 +505,7 @@ Measured on the built ESM after gzip, enforced by `check:size` with `size-limit`
 
 | Entry                       | Budget       |
 | --------------------------- | ------------ |
-| `.` (core incl. stylesheet) | 6 KB         |
+| `.` (core incl. stylesheet) | 6.25 KB      |
 | `./gate` (v0.2)             | 1 KB         |
 | `./gtag` (v0.2)             | 1 KB         |
 | `./astro` (build-time only) | not budgeted |
