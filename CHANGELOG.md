@@ -12,11 +12,14 @@ differences from those npm versions: gated scripts use `data-type` instead of
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-22
+
 ### Added
 
 - On a page the banner links to (your policy), the banner no longer blocks the page: no backdrop,
   no `inert`, no focus trap, and it is shown at the bottom with a spacer below the page so the
-  policy can be read in full before choosing. A blocking banner still has no close control there; other pages are unchanged.
+  policy can be read in full before choosing. A blocking banner still has no close control there;
+  other pages are unchanged.
 
 ### Changed
 
