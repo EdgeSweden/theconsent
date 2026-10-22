@@ -180,6 +180,54 @@ describe("blocking mode (default)", () => {
     expect(t.reopen.hasAttribute("inert")).toBe(false);
     expect(t.preInert.hasAttribute("inert")).toBe(true);
   });
+  // Mutation observer callbacks run as microtasks.
+  const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+  test("content added while open is made inert, and freed on close", async () => {
+    const t = await page();
+    const late = t.doc.createElement("div");
+    t.doc.body.append(late);
+    await settle();
+    expect(late.hasAttribute("inert")).toBe(true);
+    t.byText(t.banner, "Reject all").click();
+    expect(late.hasAttribute("inert")).toBe(false);
+  });
+  test("inert is re-applied when the host removes it while open", async () => {
+    const t = await page();
+    t.main.removeAttribute("inert");
+    await settle();
+    expect(t.main.hasAttribute("inert")).toBe(true);
+    t.byText(t.banner, "Reject all").click();
+    expect(t.main.hasAttribute("inert")).toBe(false);
+  });
+  test("the page is freed when the host removes the root", async () => {
+    const t = await page();
+    t.root.remove();
+    await settle();
+    expect(t.main.hasAttribute("inert")).toBe(false);
+    expect(t.reopen.hasAttribute("inert")).toBe(false);
+    expect(t.preInert.hasAttribute("inert")).toBe(true);
+    const late = t.doc.createElement("div");
+    t.doc.body.append(late);
+    await settle();
+    expect(late.hasAttribute("inert")).toBe(false);
+  });
+  test("a body child that wraps the root is never made inert", async () => {
+    const t = await page();
+    const wrapper = t.doc.createElement("div");
+    t.doc.body.append(wrapper);
+    wrapper.append(t.root);
+    await settle();
+    expect(wrapper.hasAttribute("inert")).toBe(false);
+    expect(t.main.hasAttribute("inert")).toBe(true);
+  });
+  test("content added after close is not made inert", async () => {
+    const t = await page();
+    t.byText(t.banner, "Reject all").click();
+    const late = t.doc.createElement("div");
+    t.doc.body.append(late);
+    await settle();
+    expect(late.hasAttribute("inert")).toBe(false);
+  });
   test("focus moves to the dialog on open", async () => {
     const t = await page();
     expect(t.doc.activeElement).toBe(t.banner);
@@ -474,5 +522,35 @@ describe("hardening", () => {
     h.doc.body.remove();
     h.api.mount(baseConfig(), h.doc);
     expect(() => h.api.openSettings()).not.toThrow();
+  });
+});
+
+describe("ids", () => {
+  test("keeps ARIA and label references inside the root when ids collide", async () => {
+    const h = await harness();
+    for (const id of ["consent-title", "consent-description", "consent-switch-analytics"]) {
+      const host = h.doc.createElement("div");
+      host.id = id;
+      h.doc.body.append(host);
+    }
+    h.api.mount(baseConfig(), h.doc);
+    const root = h.doc.querySelector(".consent")!;
+    const refs = [...root.querySelectorAll("[aria-labelledby], [aria-describedby], label[for]")];
+    expect(refs.length).toBeGreaterThan(0);
+    for (const el of refs) {
+      const ids = ["aria-labelledby", "aria-describedby", "for"].flatMap((name) =>
+        (el.getAttribute(name) ?? "").split(" ").filter(Boolean),
+      );
+      for (const id of ids) {
+        const target = h.doc.getElementById(id);
+        expect(target, id).not.toBeNull();
+        expect(root.contains(target), id).toBe(true);
+      }
+    }
+    expect(root.querySelector("#consent1-title")).not.toBeNull();
+  });
+  test("uses the consent- prefix when nothing collides", async () => {
+    const t = await page();
+    expect(t.root.querySelector("#consent-title")).not.toBeNull();
   });
 });
