@@ -228,8 +228,7 @@ rendered as text and never parsed as HTML.
   its background, is at least 4.5:1. A failure is a warning, or an error with `strictContrast`.
 - `theme.vars` may not override a colour token.
 - `record`, when a string, is a root-relative path or an absolute http(s) URL.
-- Unknown keys fail everywhere. `gateScripts` and `consentMode` fail with a pointer to v0.2.0,
-  which adds them.
+- Unknown keys fail everywhere.
 
 ## Runtime behaviour
 
@@ -314,8 +313,8 @@ must answer the CORS preflight. It must also be allowed by your CSP's `connect-s
 
 ## Script gating
 
-Available from v0.2.0. Set `gateScripts: true`. With the Astro integration that is all: it
-imports and installs the adapter after `mount`. Elsewhere, install it yourself:
+Set `gateScripts: true`. With the Astro integration that is all: it imports and installs the
+adapter after `mount`. Elsewhere, install it yourself:
 
 ```ts
 import { installScriptGating } from "@edgesweden/consent/gate";
@@ -353,7 +352,7 @@ it.
 
 ## Google Consent Mode v2
 
-Available from v0.2.0. Map each category to the gtag consent keys it controls:
+Map each category to the gtag consent keys it controls:
 
 ```ts
 consentMode: {

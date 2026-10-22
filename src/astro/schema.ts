@@ -124,14 +124,14 @@ export const consentConfigSchema = z.strictObject({
       order: z.array(z.enum(BUTTONS)).optional(),
     })
     .optional(),
-  /** Google Consent Mode v2 adapter (entry "./gtag"); added in v0.2.0. */
+  /** Google Consent Mode v2 adapter (entry "./gtag"). */
   consentMode: z
     .strictObject({
       mapping: z.record(z.string(), z.array(gtagKey)),
       extra: z.partialRecord(gtagKey, z.enum(["granted", "denied"])).optional(),
     })
     .optional(),
-  /** Script-gating adapter (entry "./gate"); added in v0.2.0. */
+  /** Script-gating adapter (entry "./gate"). */
   gateScripts: z.boolean().optional(),
   record: z
     .union([
