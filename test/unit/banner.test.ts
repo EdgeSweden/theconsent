@@ -11,9 +11,11 @@ async function page(
     p?: string | undefined;
     layout?: Layout;
     config?: Partial<ConsentConfig>;
+    url?: string;
   } = {},
 ) {
   const h = await harness({
+    ...(options.url ? { url: options.url } : {}),
     cookie: options.stored
       ? storedCookie({ c: options.stored, ...(options.p ? { p: options.p } : {}) })
       : undefined,
@@ -294,6 +296,135 @@ describe("non-blocking mode", () => {
     t.root.querySelector<HTMLElement>(".consent__backdrop")!.click();
     expect(t.visible(t.banner)).toBe(true);
     expect(t.main.hasAttribute("inert")).toBe(false);
+  });
+});
+
+describe("a page the banner links to (decision #70)", () => {
+  // The fixture's policy link is "/cookies"; a trailing slash on either side does not matter.
+  const policy = "https://example.com/cookies/";
+
+  test("blocking config: the page stays readable — no backdrop, no inert, no aria-modal", async () => {
+    const t = await page({ url: policy });
+    expect(t.visible(t.banner)).toBe(true);
+    expect(t.root.hasAttribute("data-readable")).toBe(true);
+    expect(t.root.getAttribute("data-blocking")).toBe("false");
+    expect(t.root.querySelector(".consent__backdrop")).toBeNull();
+    expect(t.banner.hasAttribute("aria-modal")).toBe(false);
+    expect(t.main.hasAttribute("inert")).toBe(false);
+  });
+
+  test("still no close control, and Escape still does nothing: a choice is required", async () => {
+    const t = await page({ url: policy });
+    expect(t.banner.querySelector(".consent__button--close")).toBeNull();
+    t.key("Escape");
+    expect(t.visible(t.banner)).toBe(true);
+    expect(t.cookieWrites).toEqual([]);
+  });
+
+  test("focus moves to the banner on open but is not trapped", async () => {
+    const t = await page({ url: policy });
+    expect(t.doc.activeElement).toBe(t.banner);
+    t.main.tabIndex = -1;
+    t.main.focus();
+    expect(t.doc.activeElement).toBe(t.main);
+  });
+
+  test.each([
+    ["center", "bottom-center"],
+    ["top-left", "bottom-left"],
+    ["top-center", "bottom-center"],
+    ["top-right", "bottom-right"],
+    ["bottom-left", "bottom-left"],
+    ["bottom-center", "bottom-center"],
+    ["bottom-right", "bottom-right"],
+  ] as const)("position %s is shown at %s there", async (position, shown) => {
+    const t = await page({ url: policy, layout: { position } });
+    expect(t.root.getAttribute("data-position")).toBe(shown);
+  });
+
+  test("a spacer at the end of body keeps the end of the page above the banner, only while it shows", async () => {
+    const t = await page({ url: policy });
+    const spacer = t.doc.body.lastElementChild!;
+    expect(spacer.classList.contains("consent")).toBe(false);
+    expect(spacer.getAttribute("aria-hidden")).toBe("true");
+    expect(spacer.textContent).toBe("");
+    t.byText(t.banner, "Reject all").click();
+    expect(spacer.isConnected).toBe(false);
+  });
+
+  test("the spacer stays while the settings dialog is open, so the page does not jump", async () => {
+    const t = await page({ url: policy });
+    const spacer = t.doc.body.lastElementChild!;
+    t.byText(t.banner, "Settings").click();
+    expect(spacer.isConnected).toBe(true);
+    t.key("Escape");
+    expect(t.visible(t.banner)).toBe(true);
+    expect(spacer.isConnected).toBe(true);
+  });
+
+  test("an href that cannot be parsed matches no page and does not break mount", async () => {
+    const config = baseConfig();
+    config.locales["en"]!.links = [{ id: "policy", label: "cookie policy", href: "http://[" }];
+    const t = await page({ url: policy, config: { locales: config.locales } });
+    expect(t.visible(t.banner)).toBe(true);
+    expect(t.root.hasAttribute("data-readable")).toBe(false);
+  });
+
+  test("other pages get no spacer and keep their position", async () => {
+    const t = await page({ layout: { position: "center" } });
+    expect(t.root.getAttribute("data-position")).toBe("center");
+    expect(t.doc.body.lastElementChild).toBe(t.root);
+  });
+
+  test("the settings dialog does not make the page inert either", async () => {
+    const t = await page({ url: policy });
+    t.byText(t.banner, "Settings").click();
+    expect(t.visible(t.settings)).toBe(true);
+    expect(t.settings.hasAttribute("aria-modal")).toBe(false);
+    expect(t.main.hasAttribute("inert")).toBe(false);
+  });
+
+  test("a choice there is stored and closes the banner as anywhere else", async () => {
+    const t = await page({ url: policy });
+    t.byText(t.banner, "Accept all").click();
+    expect(t.visible(t.root)).toBe(false);
+    expect(currentCookie(t.doc)).toMatchObject({ c: ALL_GRANTED });
+    expect(t.actions).toEqual(["accept_all"]);
+  });
+
+  test("query and hash do not matter", async () => {
+    const t = await page({ url: "https://example.com/cookies?ref=1#top" });
+    expect(t.root.hasAttribute("data-readable")).toBe(true);
+  });
+
+  test.each([
+    "https://example.com/",
+    "https://example.com/cookies/more",
+    "https://example.com/cookie",
+  ])("every other page blocks as before: %s", async (url) => {
+    const t = await page({ url });
+    expect(t.root.hasAttribute("data-readable")).toBe(false);
+    expect(t.root.getAttribute("data-blocking")).toBe("true");
+    expect(t.root.querySelector(".consent__backdrop")).not.toBeNull();
+    expect(t.main.hasAttribute("inert")).toBe(true);
+  });
+
+  test("a link to another origin with the same path does not count", async () => {
+    const config = baseConfig();
+    config.locales["en"]!.links = [
+      { id: "policy", label: "cookie policy", href: "https://example.org/cookies" },
+    ];
+    const t = await page({ url: policy, config: { locales: config.locales } });
+    expect(t.root.hasAttribute("data-readable")).toBe(false);
+    expect(t.main.hasAttribute("inert")).toBe(true);
+  });
+
+  test("non-blocking config: the close control and Escape keep working, the backdrop goes", async () => {
+    const t = await page({ url: policy, layout: { blocking: false, backdrop: "dim" } });
+    expect(t.root.querySelector(".consent__backdrop")).toBeNull();
+    expect(t.banner.querySelector(".consent__button--close")).not.toBeNull();
+    t.key("Escape");
+    expect(t.visible(t.root)).toBe(false);
   });
 });
 

@@ -10,7 +10,8 @@ export const COLOR_VAR =
 
 /**
  * Applies the theme as `--consent-*` custom properties on the root element, one at a time
- * through `style.setProperty` (plan: CSP). Nothing else touches inline style. `vars` mirror
+ * through `style.setProperty` (plan: CSP). The only other inline style is the linked-page spacer's
+ * height, also set through `style.setProperty` (banner.ts). `vars` mirror
  * validation at runtime: only `--consent-*` names that are not a colour token, so a config
  * mounted without `validateConfig` cannot bypass the contrast check.
  */

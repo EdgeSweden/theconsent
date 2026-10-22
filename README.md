@@ -8,7 +8,7 @@ A config-driven cookie-consent banner for static and server-rendered sites.
   the same styling. In blocking mode the banner cannot be dismissed without a choice.
 - **Strict-CSP clean.** No inline styles, `<style>` injection, `eval` or HTML strings. It works
   under Astro's hashed CSP with no policy change.
-- **Small and framework-free.** The core and its stylesheet are under 6 KB gzipped, with zero
+- **Small and framework-free.** The core and its stylesheet are under 6.25 KB gzipped, with zero
   runtime dependencies in the browser.
 - **Accessible.** Dialog semantics, focus management, keyboard-complete, reduced-motion aware.
 - **Locale-neutral.** Every visitor-facing string comes from your config. The package ships no
@@ -245,6 +245,16 @@ rendered as text and never parsed as HTML.
   the rest of the page is `inert`, and focus stays in the dialog.
 - **Non-blocking mode** has a close control that means "decide later". Nothing is stored, and
   the banner returns on the next page. Escape does the same.
+- **Linked pages stay readable.** On a page the banner links to (the path of a same-origin
+  `links[].href` of the active locale; query, hash and a trailing slash are ignored), the banner
+  opens without a backdrop, nothing is `inert`, focus is not trapped and there is no
+  `aria-modal`, so the visitor can read your policy before choosing. The banner is shown at the
+  bottom, 1rem from the edge, keeping its left, centre or right alignment (a `center` or `top-*`
+  banner moves to the bottom there), and an empty spacer of its height at the end of `body` lets
+  the end of the page scroll into view above it. The root then carries `data-readable` and
+  `data-blocking="false"`. Nothing else changes: a blocking banner still has no close control and
+  Escape still does nothing. Link only to real pages: a link that resolves to every page, such as
+  `#` or `?x`, makes every page readable, and query strings do not distinguish pages.
 - **Actions.** Each choice is reported as one of these:
 
   | Action       | When                                                                         |
@@ -433,7 +443,7 @@ is allow-listed can be activated by consent gating. Gated inline code needs its 
 - Node ≥ 22.
 
 The browser entry has zero runtime dependencies. Its size budget is part of the public contract:
-the core and its stylesheet stay at or under 6 KB gzipped.
+the core and its stylesheet stay at or under 6.25 KB gzipped.
 
 ## Versioning
 
