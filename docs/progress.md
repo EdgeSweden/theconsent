@@ -22,4 +22,4 @@
 - [x] (A) P4.4 - Vite-based config loader with dependency watching, astro >= 5.4 (plan: Astro integration)
 - [x] (A) P4.5 - Validation reports schema and cross-field errors in one pass (plan: Validation)
 - [x] (A) P4.6 - Hardening: late content stays inert, unique id prefix, theme.vars runtime guard (plan: Accessibility, Validation, CSP)
-- [ ] (A) P4.7 - Release 0.3.0, the first published version (plan: Releases)
+- [x] (A) P4.7 - Release 0.3.0, the first published version (plan: Releases)

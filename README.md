@@ -30,6 +30,7 @@ There is no backend. Everything is one config file per site.
 - [Accessibility](#accessibility)
 - [Requirements](#requirements)
 - [Versioning](#versioning)
+- [Releases and contributing](#releases-and-contributing)
 
 ## Install
 
@@ -440,6 +441,17 @@ the core and its stylesheet stay at or under 6 KB gzipped.
 The package follows semantic versioning. Within `0.x`, minor versions change the config schema
 only additively. Any breaking change to the config, the cookie format or the state API bumps the
 major version. See [CHANGELOG.md](./CHANGELOG.md).
+
+## Releases and contributing
+
+Releases are built and published from version tags by the repository's release workflow, with
+npm provenance, and each version is approved by a maintainer before it is installable. The
+procedure is in
+[docs/releasing.md](https://github.com/EdgeSweden/theconsent/blob/main/docs/releasing.md).
+How changes are planned, checked and reviewed is in
+[docs/plan.md](https://github.com/EdgeSweden/theconsent/blob/main/docs/plan.md). Report
+vulnerabilities as described in
+[SECURITY.md](https://github.com/EdgeSweden/theconsent/blob/main/SECURITY.md).
 
 ## Licence
 
